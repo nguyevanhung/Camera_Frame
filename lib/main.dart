@@ -104,17 +104,17 @@ class HomeScreen extends StatelessWidget {
                 SizedBox(width: 12.w),
                 Expanded(
                   flex: 1,
-                  child: SizedBox(
-                    height: 80.h,
-                    child: ElevatedButton(
-                      onPressed: () => _pickImage(context, ImageSource.gallery),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.grey[800],
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12.r),
-                        ),
-                        elevation: 4,
+                  child: ElevatedButton(
+                    onPressed: () => _pickImage(context, ImageSource.gallery),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.grey[800],
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12.r),
                       ),
+                      elevation: 4,
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8.0),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -127,9 +127,9 @@ class HomeScreen extends StatelessWidget {
                           Text(
                             "Album",
                             style: TextStyle(
-                              fontSize: 13.sp,
+                              fontSize: 10.sp,
                               color: Colors.white,
-                              fontWeight: FontWeight.w600,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
                         ],
@@ -172,12 +172,168 @@ class _EditScreenState extends State<EditScreen> {
   File? _imageFile;
   List<Offset> _corners = [];
   Uint8List? _croppedBytes;
+  int _selectedFilter = 0;
 
   double _imageScale = 1.0;
   Offset _imageOffset = Offset.zero;
   double _imgWidth = 1;
   double _imgHeight = 1;
   bool _isCropping = false;
+  bool _showFilters = false;
+
+  final List<Map<String, dynamic>> _filters = [
+    {'name': 'Gốc', 'filter': null},
+    {
+      'name': 'Grayscale',
+      'filter': const ColorFilter.matrix([
+        0.2126,
+        0.7152,
+        0.0722,
+        0,
+        0,
+        0.2126,
+        0.7152,
+        0.0722,
+        0,
+        0,
+        0.2126,
+        0.7152,
+        0.0722,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+      ]),
+    },
+    {
+      'name': 'Sepia',
+      'filter': const ColorFilter.matrix([
+        0.393,
+        0.769,
+        0.189,
+        0,
+        0,
+        0.349,
+        0.686,
+        0.168,
+        0,
+        0,
+        0.272,
+        0.534,
+        0.131,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+      ]),
+    },
+    {
+      'name': 'Invert',
+      'filter': const ColorFilter.matrix([
+        -1,
+        0,
+        0,
+        0,
+        255,
+        0,
+        -1,
+        0,
+        0,
+        255,
+        0,
+        0,
+        -1,
+        0,
+        255,
+        0,
+        0,
+        0,
+        1,
+        0,
+      ]),
+    },
+    {
+      'name': 'Vintage',
+      'filter': const ColorFilter.matrix([
+        0.6,
+        0.3,
+        0.1,
+        0,
+        0,
+        0.2,
+        0.7,
+        0.1,
+        0,
+        0,
+        0.2,
+        0.1,
+        0.7,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+      ]),
+    },
+    {
+      'name': 'Cold',
+      'filter': const ColorFilter.matrix([
+        1.0,
+        0,
+        0,
+        0,
+        -10,
+        0,
+        1.0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1.2,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+      ]),
+    },
+    {
+      'name': 'Warm',
+      'filter': const ColorFilter.matrix([
+        1.2,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1.0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0.8,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+      ]),
+    },
+  ];
 
   @override
   void initState() {
@@ -234,8 +390,75 @@ class _EditScreenState extends State<EditScreen> {
     }
   }
 
+  Widget _buildFilterSelector(Uint8List imageBytes) {
+    return Container(
+      height: 120.h,
+      color: Colors.black87,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: EdgeInsets.symmetric(horizontal: 16.w),
+        itemCount: _filters.length,
+        itemBuilder: (context, index) {
+          final filter = _filters[index];
+          final isSelected = index == _selectedFilter;
+          return GestureDetector(
+            onTap: () {
+              setState(() {
+                _selectedFilter = index;
+              });
+            },
+            child: Container(
+              width: 80.w,
+              margin: EdgeInsets.symmetric(horizontal: 4.w, vertical: 8.h),
+              child: Column(
+                children: [
+                  Container(
+                    width: 60.w,
+                    height: 60.h,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8.r),
+                      border: Border.all(
+                        color: isSelected ? Colors.blue : Colors.white24,
+                        width: isSelected ? 2 : 1,
+                      ),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8.r),
+                      child: ColorFiltered(
+                        colorFilter:
+                            filter['filter'] ??
+                            const ColorFilter.mode(
+                              Colors.transparent,
+                              BlendMode.dst,
+                            ),
+                        child: Image.memory(imageBytes, fit: BoxFit.cover),
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: 4.h),
+                  Text(
+                    filter['name'],
+                    style: TextStyle(
+                      color: isSelected ? Colors.blue : Colors.white,
+                      fontSize: 10.sp,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final imageBytes =
+        _croppedBytes ??
+        (_imageFile != null ? _imageFile!.readAsBytesSync() : null);
+
     return Scaffold(
       backgroundColor: const Color.fromARGB(255, 0, 0, 0),
       appBar: AppBar(
@@ -310,16 +533,24 @@ class _EditScreenState extends State<EditScreen> {
                                   top: offset.dy,
                                   width: imgDisplayWidth,
                                   height: imgDisplayHeight,
-                                  child:
-                                      _croppedBytes == null
-                                          ? Image.file(
-                                            _imageFile!,
-                                            fit: BoxFit.fill,
-                                          )
-                                          : Image.memory(
-                                            _croppedBytes!,
-                                            fit: BoxFit.fill,
-                                          ),
+                                  child: ColorFiltered(
+                                    colorFilter:
+                                        _filters[_selectedFilter]['filter'] ??
+                                        const ColorFilter.mode(
+                                          Colors.transparent,
+                                          BlendMode.dst,
+                                        ),
+                                    child:
+                                        _croppedBytes == null
+                                            ? Image.file(
+                                              _imageFile!,
+                                              fit: BoxFit.fill,
+                                            )
+                                            : Image.memory(
+                                              _croppedBytes!,
+                                              fit: BoxFit.fill,
+                                            ),
+                                  ),
                                 ),
                                 if (_isCropping && _croppedBytes == null) ...[
                                   Positioned.fill(
@@ -373,6 +604,8 @@ class _EditScreenState extends State<EditScreen> {
                           },
                         ),
                       ),
+                      if (_showFilters && imageBytes != null)
+                        _buildFilterSelector(imageBytes),
                       buildBottomToolBar(),
                     ],
                   ),
@@ -387,8 +620,8 @@ class _EditScreenState extends State<EditScreen> {
   Widget buildBottomToolBar() {
     final tools = [
       {'icon': Icons.crop, 'label': 'Crop'},
-      {'icon': Icons.rotate_right, 'label': 'Rotate'},
       {'icon': Icons.filter, 'label': 'Filter'},
+      {'icon': Icons.rotate_right, 'label': 'Rotate'},
       {'icon': Icons.brightness_6, 'label': 'Light'},
       {'icon': Icons.tune, 'label': 'Adjust'},
       {'icon': Icons.music_note, 'label': 'Music'},
@@ -411,6 +644,12 @@ class _EditScreenState extends State<EditScreen> {
                 setState(() {
                   _isCropping = true;
                   _croppedBytes = null;
+                  _showFilters = false;
+                });
+              } else if (tool['label'] == 'Filter') {
+                setState(() {
+                  _showFilters = !_showFilters;
+                  _isCropping = false;
                 });
               }
               // TODO: Xử lý các tool khác nếu muốn
