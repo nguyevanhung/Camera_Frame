@@ -1,8 +1,15 @@
 
 fun main() {
-    fun add(a: Double, b: Double): Double {
-        return a + b
+    
+    val in2: () -> Unit = {
+        println("hello")
     }
 
-    println(add(4.0, 5.0)) // Kết quả: 9.0
+    in2()
+
+    val square : (Int) -> Int = {
+    x -> x * x        
+    }
+
+    println(square(4))
 }

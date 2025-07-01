@@ -39,8 +39,7 @@ dependencies:
   image: ^4.5.4
   device_preview_plus: ^2.3.1
   flutter_screenutil: ^5.9.3
-  flutter_image_filters: ^0.0.28
-  photofilters: ^3.0.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
