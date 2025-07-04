@@ -12,12 +12,6 @@ import org.opencv.core.*
 import org.opencv.imgproc.Imgproc
 import java.io.ByteArrayOutputStream
 
-// class main : FlutterActivity() {
-//     // This is the main entry point for the Flutter application
-//     private val CHANNEL = "frameit/detect_corners"
-    
-// }
-
 
 class MainActivity : FlutterActivity() {
     private val CHANNEL = "frameit/detect_corners"
@@ -37,17 +31,19 @@ class MainActivity : FlutterActivity() {
                     val points = call.argument<List<Map<String, Int>>>("points")!!
                     val croppedBytes = cropImage(path, points)
                     result.success(croppedBytes)
-                }
-                else -> result.notImplemented()
+                } 
+        else -> result.notImplemented()
+            
             }
         }
     }
+
 
     private fun cropImage(path: String, points: List<Map<String, Int>>): ByteArray? {
         val bitmap = BitmapFactory.decodeFile(path)
         val src = Mat()
         Utils.bitmapToMat(bitmap, src)
-
+        Imgproc.GaussianBlur(src, src, Size(5.0, 5.0), 0.0)
         val srcPts = MatOfPoint2f(*points.map {
             Point(it["x"]!!.toDouble(), it["y"]!!.toDouble())
         }.toTypedArray())

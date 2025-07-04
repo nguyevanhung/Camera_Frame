@@ -5,7 +5,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:image_editor_plus/image_editor_plus.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:pro_image_editor/core/models/editor_callbacks/pro_image_editor_callbacks.dart';
+import 'package:pro_image_editor/features/main_editor/main_editor.dart';
 import 'package:scanner/widget/custom_appbar_widget.dart';
 import 'package:scanner/widget/custom_navbar_widget.dart';
 
@@ -18,7 +21,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ScreenUtilInit(
-      designSize: const Size(390, 844), // tuỳ thiết kế gốc
+      designSize: const Size(390, 844),
       minTextAdapt: true,
       builder:
           (context, child) => MaterialApp(
@@ -173,13 +176,16 @@ class _EditScreenState extends State<EditScreen> {
   List<Offset> _corners = [];
   Uint8List? _croppedBytes;
   int _selectedFilter = 0;
-
+  int _rotation = 0;
   double _imageScale = 1.0;
   Offset _imageOffset = Offset.zero;
   double _imgWidth = 1;
   double _imgHeight = 1;
   bool _isCropping = false;
   bool _showFilters = false;
+
+  // Biến hỗ trợ kéo mượt
+  Offset? _cornerStart;
 
   final List<Map<String, dynamic>> _filters = [
     {'name': 'Gốc', 'filter': null},
@@ -346,15 +352,20 @@ class _EditScreenState extends State<EditScreen> {
     final decoded = await decodeImageFromList(await file.readAsBytes());
     final width = decoded.width.toDouble();
     final height = decoded.height.toDouble();
+
+    // Thay vì sát mép, lấy vào trong 10% mỗi cạnh
+    final marginX = width * 0.1;
+    final marginY = height * 0.1;
+
     setState(() {
       _imageFile = file;
       _imgWidth = width;
       _imgHeight = height;
       _corners = [
-        const Offset(0, 0),
-        Offset(width, 0),
-        Offset(width, height),
-        Offset(0, height),
+        Offset(marginX, marginY),
+        Offset(width - marginX, marginY),
+        Offset(width - marginX, height - marginY),
+        Offset(marginX, height - marginY),
       ];
       _croppedBytes = null;
       _isCropping = false;
@@ -426,7 +437,7 @@ class _EditScreenState extends State<EditScreen> {
                       borderRadius: BorderRadius.circular(8.r),
                       child: ColorFiltered(
                         colorFilter:
-                            filter['filter'] ??
+                            filter['filter'] as ColorFilter? ??
                             const ColorFilter.mode(
                               Colors.transparent,
                               BlendMode.dst,
@@ -437,7 +448,7 @@ class _EditScreenState extends State<EditScreen> {
                   ),
                   SizedBox(height: 4.h),
                   Text(
-                    filter['name'],
+                    filter['name'] as String,
                     style: TextStyle(
                       color: isSelected ? Colors.blue : Colors.white,
                       fontSize: 10.sp,
@@ -533,23 +544,28 @@ class _EditScreenState extends State<EditScreen> {
                                   top: offset.dy,
                                   width: imgDisplayWidth,
                                   height: imgDisplayHeight,
-                                  child: ColorFiltered(
-                                    colorFilter:
-                                        _filters[_selectedFilter]['filter'] ??
-                                        const ColorFilter.mode(
-                                          Colors.transparent,
-                                          BlendMode.dst,
-                                        ),
-                                    child:
-                                        _croppedBytes == null
-                                            ? Image.file(
-                                              _imageFile!,
-                                              fit: BoxFit.fill,
-                                            )
-                                            : Image.memory(
-                                              _croppedBytes!,
-                                              fit: BoxFit.fill,
-                                            ),
+                                  child: Transform.rotate(
+                                    angle:
+                                        (_rotation * 90) * 3.1415926535 / 180,
+                                    child: ColorFiltered(
+                                      colorFilter:
+                                          _filters[_selectedFilter]['filter']
+                                              as ColorFilter? ??
+                                          const ColorFilter.mode(
+                                            Colors.transparent,
+                                            BlendMode.dst,
+                                          ),
+                                      child:
+                                          _croppedBytes == null
+                                              ? Image.file(
+                                                _imageFile!,
+                                                fit: BoxFit.fill,
+                                              )
+                                              : Image.memory(
+                                                _croppedBytes!,
+                                                fit: BoxFit.fill,
+                                              ),
+                                    ),
                                   ),
                                 ),
                                 if (_isCropping && _croppedBytes == null) ...[
@@ -567,32 +583,33 @@ class _EditScreenState extends State<EditScreen> {
                                     final index = entry.key;
                                     final point = entry.value * scale + offset;
                                     return Positioned(
-                                      left: point.dx - 12.w,
-                                      top: point.dy - 12.h,
+                                      left: point.dx - 20.w,
+                                      top: point.dy - 20.h,
                                       child: GestureDetector(
+                                        onPanStart: (details) {
+                                          _cornerStart = _corners[index];
+                                        },
                                         onPanUpdate: (details) {
                                           setState(() {
-                                            final local =
-                                                (point +
-                                                    details.delta -
-                                                    offset) /
-                                                scale;
+                                            final delta =
+                                                details.delta / _imageScale;
                                             _corners[index] = Offset(
-                                              local.dx.clamp(0, _imgWidth),
-                                              local.dy.clamp(0, _imgHeight),
+                                              (_cornerStart!.dx + delta.dx)
+                                                  .clamp(0, _imgWidth),
+                                              (_cornerStart!.dy + delta.dy)
+                                                  .clamp(0, _imgHeight),
                                             );
                                           });
                                         },
+                                        onPanEnd: (_) {
+                                          _cornerStart = null;
+                                        },
                                         child: Container(
-                                          width: 24.w,
-                                          height: 24.h,
+                                          width: 40.w,
+                                          height: 40.h,
                                           decoration: BoxDecoration(
-                                            color: Colors.red,
+                                            color: Colors.transparent,
                                             shape: BoxShape.circle,
-                                            border: Border.all(
-                                              color: Colors.white,
-                                              width: 2.w,
-                                            ),
                                           ),
                                         ),
                                       ),
@@ -624,7 +641,7 @@ class _EditScreenState extends State<EditScreen> {
       {'icon': Icons.rotate_right, 'label': 'Rotate'},
       {'icon': Icons.brightness_6, 'label': 'Light'},
       {'icon': Icons.tune, 'label': 'Adjust'},
-      {'icon': Icons.music_note, 'label': 'Music'},
+      {'icon': Icons.mode_edit_outline_sharp, 'label': 'edit'},
     ];
 
     return Container(
@@ -639,7 +656,7 @@ class _EditScreenState extends State<EditScreen> {
         itemBuilder: (context, index) {
           final tool = tools[index];
           return GestureDetector(
-            onTap: () {
+            onTap: () async {
               if (tool['label'] == 'Crop') {
                 setState(() {
                   _isCropping = true;
@@ -651,9 +668,54 @@ class _EditScreenState extends State<EditScreen> {
                   _showFilters = !_showFilters;
                   _isCropping = false;
                 });
+              } else if (tool['label'] == 'Rotate') {
+                setState(() {
+                  _rotation = (_rotation + 1) % 4;
+                });
+              } else if (tool['label'] == 'edit') {
+                if (_imageFile != null) {
+                  Uint8List imageBytes =
+                      _croppedBytes ?? await _imageFile!.readAsBytes();
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder:
+                          (context) => ProImageEditor.memory(
+                            imageBytes,
+                            callbacks: ProImageEditorCallbacks(
+                              onImageEditingComplete: (
+                                Uint8List editedBytes,
+                              ) async {
+                                setState(() {
+                                  _croppedBytes = editedBytes;
+                                });
+                                Navigator.pop(context);
+                                return;
+                              },
+                            ),
+                          ),
+                    ),
+                  );
+                }
+              } else if (tool['label'] == 'Adjust') {
+                if (_imageFile != null) {
+                  Uint8List imageBytes =
+                      _croppedBytes ?? await _imageFile!.readAsBytes();
+                  final result = await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => ImageEditor(image: imageBytes),
+                    ),
+                  );
+                  if (result != null && result is Uint8List) {
+                    setState(() {
+                      _croppedBytes = result;
+                    });
+                  }
+                }
               }
-              // TODO: Xử lý các tool khác nếu muốn
             },
+
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.center,
@@ -699,7 +761,7 @@ class CropOverlayPainter extends CustomPainter {
 
     final dotPaint =
         Paint()
-          ..color = Colors.red
+          ..color = const Color.fromARGB(255, 238, 229, 228)
           ..style = PaintingStyle.fill;
     for (final p in points) {
       canvas.drawCircle(p, 8.r, dotPaint);
