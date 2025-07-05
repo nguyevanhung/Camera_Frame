@@ -1,26 +1,38 @@
-import 'package:flutter/services.dart';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
+import 'package:scanner/services/image_cropper_service.dart';
 
-const MethodChannel _platform = MethodChannel('frameit/detect_corners');
-
-Future<List<Offset>> detectCorners(String imagePath) async {
-  final result = await _platform.invokeMethod<List<dynamic>>('detectCorners', {
-    'path': imagePath,
-  });
-
-  return result!.map((e) {
-    final map = Map<String, dynamic>.from(e);
-    return Offset(map['x'].toDouble(), map['y'].toDouble());
-  }).toList();
+// Sử dụng image_cropper thay vì native code
+Future<File?> cropImageWithImageCropper(File imageFile) async {
+  return await ImageCropperService.cropImageForDocument(imageFile);
 }
 
-Future<Uint8List?> cropImageWithCorners(
-  String imagePath,
-  List<Offset> corners,
-) async {
-  final result = await _platform.invokeMethod<Uint8List>('cropImage', {
-    'path': imagePath,
-    'points':
-        corners.map((e) => {'x': e.dx.toInt(), 'y': e.dy.toInt()}).toList(),
-  });
-  return result;
+// Helper function để convert path string thành File
+Future<File?> cropImageFromPath(String imagePath) async {
+  final file = File(imagePath);
+  if (await file.exists()) {
+    return await ImageCropperService.cropImageForDocument(file);
+  }
+  return null;
+}
+
+// Wrapper function để maintain compatibility
+Future<File?> cropImageWithCorners(String imagePath) async {
+  return await cropImageFromPath(imagePath);
+}
+
+// Không cần detect corners nữa vì image_cropper tự handle UI
+// Chỉ cần function để pick và crop image
+Future<File?> pickAndCropDocument() async {
+  return await ImageCropperService.pickAndCropImage(
+    source: ImageSource.camera,
+    isDocument: true,
+  );
+}
+
+Future<File?> pickFromGalleryAndCrop() async {
+  return await ImageCropperService.pickAndCropImage(
+    source: ImageSource.gallery,
+    isDocument: true,
+  );
 }
